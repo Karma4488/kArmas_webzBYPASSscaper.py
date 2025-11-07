@@ -17,8 +17,8 @@ import os
 # CONFIGURATION
 # ============================
 
-BASE_URL = "https://jysk.dk"
-OUTPUT_DIR = "jysk_scraped"              # All files go here
+BASE_URL = "https://yoursite.com"
+OUTPUT_DIR = "output.html"              # All files go here
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
