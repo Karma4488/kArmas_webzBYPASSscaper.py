@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 Ultimate Professional Web Scraper (requests + BeautifulSoup)
-Use responsibly — always respect robots.txt unless you have explicit permission.
-Made by kArmasec
+Use responsibly. 
+Made in l0v3 bY kArmasec
 """
 import requests
 from requests.auth import HTTPBasicAuth
@@ -17,7 +17,7 @@ import os
 # CONFIGURATION
 # ============================
 
-BASE_URL = "https://yoursite.com"
+BASE_URL = "https://target.com"
 OUTPUT_DIR = "output.html"              # All files go here
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
