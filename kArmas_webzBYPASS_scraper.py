@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """
 Ultimate Professional Web Scraper (requests + BeautifulSoup)
-Use responsibly. 
 Made in l0v3 bY kArmasec
 """
 import requests
