@@ -1,16 +1,26 @@
-# kArmas_webzBYPASSscaper.py
-python script to scrape webzites
-by kArmasec
-to my Anonymous & Lulzsec friends 🎩🚀
-
-Ultimate Professional Web Scraper (requests + BeautifulSoup)
-Use responsibly — robots.txt to,
-Made by kArmasec
 """
+#kArmas_webzBYPASsscaper.py
+
+python script to scrape webzites
+
+to all my Anonymous & Lulzsec friends 🎩🚀
+
+Ultimate Professional  Scraper (requests + BeautifulSoup)
+Just Another Web Scraper
+bY
+kArmasec
+"""
+
 # ============================
-# CONFIGURATION
+# CONFIGURATION             
 # ============================
+
+install the requests && ruun 👽🦝
 
 BASE_URL = "http://www.fbi.gov"
-OUTPUT_DIR = "output.html"        
+OUTPUT_DIR = "output.html"    
 in file.py : D      
+
+
+
+WEARELEGION ANONYMOUS kArmasec
