@@ -17,10 +17,10 @@ kArmasec
 
 install the requests && ruun 👽🦝
 
-BASE_URL = "http://www.fbi.gov"
+BASE_URL = "http://target.com"
 OUTPUT_DIR = "output.html"    
 in file.py : D      
 
 
 
-WEARELEGION ANONYMOUS kArmasec
+WEARELEGION kArmasec
