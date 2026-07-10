@@ -2,22 +2,35 @@
 """
 Ultimate Professional Web Scraper (requests + BeautifulSoup)
 Made in l0v3 bY kArmasec
+
+Updates:
+- Default OUTPUT_DIR is now a directory ('output') instead of a file.
+- Added a small CLI (argparse) so BASE_URL, OUTPUT_DIR, MAX_PAGES, RATE_DELAY_SECONDS, and IGNORE_ROBOTS_TXT can be set at runtime.
+- Improved robots.txt parsing to respect Disallow and Crawl-delay (if present); Crawl-delay will adjust the rate delay.
+- Sanitized saved filenames and included a short hash when query strings exist to avoid collisions.
+- Minor logging and error handling improvements.
 """
+from __future__ import annotations
+
+import argparse
+import hashlib
+import logging
+import os
+import sys
+import time
+from typing import Optional, Tuple
+from urllib.parse import urljoin, urlparse, urlunparse
+
 import requests
 from requests.auth import HTTPBasicAuth
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse
-import time
-import logging
-import sys
-import os
 
 # ============================
-# CONFIGURATION
+# CONFIGURATION (defaults)
 # ============================
 
 BASE_URL = "https://target.com"
-OUTPUT_DIR = "output.html"              # All files go here
+OUTPUT_DIR = "output"              # directory to place scraped files
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
@@ -42,7 +55,7 @@ SCRAPE_BEARER = os.getenv("SCRAPE_BEARER")
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%H:%M:%S"
+    datefmt="%H:%M:%S",
 )
 log = logging.getLogger(__name__)
 
@@ -74,58 +87,111 @@ if SCRAPE_BEARER:
 # ROBOTS.TXT CHECK
 # ============================
 
-def allowed_by_robots(base_url: str) -> bool:
-    """Return True if crawling is allowed according to robots.txt"""
+def _parse_robots(txt: str, our_agent: str = "*") -> Tuple[bool, Optional[float]]:
+    """Parse robots.txt text and return (allowed, crawl_delay).
+    allowed is False only if Disallow: / applies to us.
+    crawl_delay is None or a positive float if found.
+    """
+    txt = txt.splitlines()
+    user_agents = []  # list of (agents_set, directives dict)
+    current_agents = None
+    current_directives = {}
+
+    for line in txt:
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if ":" not in line:
+            continue
+        key, val = line.split(":", 1)
+        key = key.strip().lower()
+        val = val.strip()
+
+        if key == "user-agent":
+            if current_agents is not None:
+                user_agents.append((current_agents, current_directives))
+            current_agents = {a.strip().lower() for a in val.split()} if val else {val.lower()}
+            current_directives = {}
+        elif current_agents is None:
+            # directive before any user-agent — ignore
+            continue
+        else:
+            # store directive for current group
+            current_directives.setdefault(key, []).append(val)
+
+    if current_agents is not None:
+        user_agents.append((current_agents, current_directives))
+
+    # Find most specific matching group: exact agent match first, then '*' fallback
+    our = our_agent.lower()
+    matched = None
+    for agents, directives in user_agents:
+        if our in agents:
+            matched = directives
+            break
+    if matched is None:
+        for agents, directives in user_agents:
+            if "*" in agents:
+                matched = directives
+                break
+
+    crawl_delay: Optional[float] = None
+    if matched:
+        # check crawl-delay
+        if "crawl-delay" in matched:
+            try:
+                crawl_delay = float(matched["crawl-delay"][0])
+            except Exception:
+                crawl_delay = None
+        # check disallow
+        if "disallow" in matched:
+            for p in matched["disallow"]:
+                if p.strip() in ("/", "/*"):
+                    return False, crawl_delay
+    return True, crawl_delay
+
+
+def allowed_by_robots(base_url: str) -> Tuple[bool, Optional[float]]:
+    """Return (allowed, crawl_delay) where allowed is True if crawling is allowed.
+    If IGNORE_ROBOTS_TXT is True, returns (True, None) but logs a warning.
+    """
+    global IGNORE_ROBOTS_TXT
     if IGNORE_ROBOTS_TXT:
         log.warning("IGNORING robots.txt — YOU enabled IGNORE_ROBOTS_TXT = True")
-        return True
+        return True, None
 
     robots_url = urljoin(base_url, "/robots.txt")
     try:
         r = session.get(robots_url, timeout=10)
         if r.status_code != 200:
             log.warning("robots.txt not found (%s). Assuming allowed.", r.status_code)
-            return True
+            return True, None
 
-        txt = r.text.lower()
-        user_agent_section = False
-        disallowed_paths = []
-
-        for line in txt.splitlines():
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if line.lower().startswith("user-agent:"):
-                ua = line.split(":", 1)[1].strip()
-                user_agent_section = ("*" in ua or "googlebot" in ua or "bot" in ua)
-            elif user_agent_section and line.lower().startswith("disallow:"):
-                path = line.split(":", 1)[1].strip()
-                if path:
-                    disallowed_paths.append(path)
-
-        # If there's a Disallow: / → everything is blocked
-        if any(p == "/" or p == "/*" for p in disallowed_paths):
+        allowed, crawl_delay = _parse_robots(r.text, our_agent="*")
+        if not allowed:
             log.error("robots.txt contains 'Disallow: /' → Crawling is FORBIDDEN")
             log.error("To proceed anyway, set IGNORE_ROBOTS_TXT = True (only with permission!)")
-            return False
+            return False, crawl_delay
 
         log.info("robots.txt checked → crawling allowed")
-        return True
+        if crawl_delay is not None:
+            log.info("robots.txt specifies Crawl-delay=%s seconds", crawl_delay)
+        return True, crawl_delay
 
     except Exception as e:
         log.warning("Failed to fetch robots.txt: %s → assuming allowed", e)
-        return True
+        return True, None
 
 # ============================
 # FETCH PAGE
 # ============================
 
-def fetch(url: str) -> str | None:
+def fetch(url: str) -> Optional[str]:
     """Fetch a URL with retry logic and proper error handling"""
     for attempt in range(1, MAX_RETRIES + 1):
         try:
             r = session.get(url, timeout=20, allow_redirects=True)
-            
+
             if r.status_code == 401:
                 log.error("401 Unauthorized → check credentials")
                 return None
@@ -155,18 +221,34 @@ def fetch(url: str) -> str | None:
 # SAVE HTML
 # ============================
 
-def save_html(url: str, html: str):
+def _sanitize_filename_from_url(url: str) -> str:
+    """Create a filesystem-safe filename for a URL. Keeps path structure as underscores and
+    appends a short hash if query string exists to avoid collisions.
+    Examples:
+      https://example.com/ -> index.html
+      https://example.com/foo/bar -> foo_bar.html
+      https://example.com/search?q=1 -> search_5f3a.html (hash of query)
+    """
     parsed = urlparse(url)
     path = parsed.path.strip("/") or "index"
-    filename = path.replace("/", "_").rstrip("_") + ".html"
-    
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    filepath = os.path.join(OUTPUT_DIR, filename)
+    safe = path.replace("/", "_")
+    if parsed.query:
+        short = hashlib.md5(parsed.query.encode("utf-8")).hexdigest()[:6]
+        safe = f"{safe}_{short}"
+    # fall back filename
+    filename = safe.rstrip("_") + ".html"
+    return filename
+
+
+def save_html(url: str, html: str, output_dir: str):
+    filename = _sanitize_filename_from_url(url)
+    os.makedirs(output_dir, exist_ok=True)
+    filepath = os.path.join(output_dir, filename)
 
     header = f"<!-- Scraped by kArmasec Ultimate Scraper v1.3 | {time.strftime('%Y-%m-%d %H:%M:%S')} -->\n"
     with open(filepath, "w", encoding="utf-8") as f:
         f.write(header + html)
-    
+
     log.info("Saved → %s", filepath)
 
 # ============================
@@ -177,14 +259,20 @@ def extract_links(base_url: str, html: str):
     soup = BeautifulSoup(html, "html.parser")
     links = set()
 
+    base_netloc = urlparse(base_url).netloc
     for a in soup.find_all("a", href=True):
         href = a["href"].strip()
         if href.startswith(("mailto:", "tel:", "javascript:", "#")):
             continue
         full_url = urljoin(base_url, href).split("#")[0]
-        if urlparse(full_url).netloc == urlparse(base_url).netloc:
-            links.add(full_url)
-    
+        parsed = urlparse(full_url)
+        if parsed.scheme not in ("http", "https"):
+            continue
+        if parsed.netloc == base_netloc:
+            # normalize: remove fragment, keep query
+            normalized = urlunparse((parsed.scheme, parsed.netloc, parsed.path, parsed.params, parsed.query, ""))
+            links.add(normalized)
+
     return links
 
 # ============================
@@ -192,10 +280,37 @@ def extract_links(base_url: str, html: str):
 # ============================
 
 def main():
-    if not allowed_by_robots(BASE_URL):
+    global BASE_URL, OUTPUT_DIR, MAX_PAGES, RATE_DELAY_SECONDS, IGNORE_ROBOTS_TXT
+
+    p = argparse.ArgumentParser(description="kArmasec Ultimate Web Scraper")
+    p.add_argument("base_url", nargs="?", default=BASE_URL, help="Base URL to start crawling")
+    p.add_argument("--output", "-o", default=OUTPUT_DIR, help="Output directory to save HTML files")
+    p.add_argument("--max-pages", "-n", type=int, default=MAX_PAGES, help="Maximum number of pages to scrape")
+    p.add_argument("--delay", "-d", type=float, default=RATE_DELAY_SECONDS, help="Seconds to wait between requests")
+    p.add_argument("--ignore-robots", action="store_true", help="Ignore robots.txt (DANGEROUS unless you have permission)")
+    args = p.parse_args()
+
+    BASE_URL = args.base_url
+    OUTPUT_DIR = args.output
+    MAX_PAGES = args.max_pages
+    RATE_DELAY_SECONDS = args.delay
+    if args.ignore_robots:
+        IGNORE_ROBOTS_TXT = True
+
+    allowed, crawl_delay = allowed_by_robots(BASE_URL)
+    if not allowed:
         log.error("robots.txt blocks crawling. Exiting.")
-        log.error("If you have permission, edit the script and set IGNORE_ROBOTS_TXT = True")
+        log.error("If you have permission, run with --ignore-robots or edit the script and set IGNORE_ROBOTS_TXT = True")
         sys.exit(1)
+
+    if crawl_delay is not None:
+        # respect crawl-delay if it's larger than our configured delay
+        try:
+            if crawl_delay > RATE_DELAY_SECONDS:
+                log.info("Adjusting rate delay from %s to robots 'Crawl-delay'=%s", RATE_DELAY_SECONDS, crawl_delay)
+                RATE_DELAY_SECONDS = crawl_delay
+        except Exception:
+            pass
 
     to_visit = [BASE_URL]
     visited = set()
@@ -214,7 +329,7 @@ def main():
             visited.add(url)
             continue
 
-        save_html(url, html)
+        save_html(url, html, OUTPUT_DIR)
         visited.add(url)
         scraped_count += 1
 
@@ -228,6 +343,7 @@ def main():
 
     log.info("Done! Scraped %d pages → saved in '%s'", scraped_count, OUTPUT_DIR)
     log.info("Made with love by kArmasec")
+
 
 if __name__ == "__main__":
     main()
