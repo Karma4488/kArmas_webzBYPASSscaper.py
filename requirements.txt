@@ -1,0 +1,4 @@
+# Minimal dependencies for kArmas_webzBYPASS_scraper.py
+requests>=2.28.0
+beautifulsoup4>=4.11.1
+lxml>=4.9.2    # optional, faster/stricter XML/HTML parsing
