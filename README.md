@@ -3,7 +3,7 @@
 
 python script to scrape webzites
 
-to all my Anonymous & Lulzsec friends 🎩🚀
+🎩🚀
 
 Ultimate Professional  Scraper (requests + BeautifulSoup)
 Just Another Web Scraper
