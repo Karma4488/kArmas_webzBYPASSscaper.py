@@ -3,7 +3,7 @@
 
 meaw
 
-python script to scrape webzites
+python script to scrape websites
 
 🎩🚀
 
