@@ -1,7 +1,9 @@
 """
 #kArmas_webzBYPASsscaper.py
 
-python script to scrape webzites
+meaw (issue #3 marker)
+
+python script to scrape websites
 
 🎩🚀
 
