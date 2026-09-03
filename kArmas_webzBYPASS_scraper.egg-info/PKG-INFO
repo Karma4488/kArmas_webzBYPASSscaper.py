@@ -1,3 +1,13 @@
+Metadata-Version: 2.4
+Name: kArmas-webzBYPASS-scraper
+Version: 0.1.0
+Summary: A simple web scraper utility built with requests and BeautifulSoup.
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Requires-Dist: requests>=2.28.0
+Requires-Dist: beautifulsoup4>=4.11.1
+Requires-Dist: lxml>=4.9.2
+
 # kArmas_webzBYPASS_scraper.py
 
 A lightweight web scraper built with `requests` and `BeautifulSoup`.
