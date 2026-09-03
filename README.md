@@ -1,6 +1,8 @@
 """
 #kArmas_webzBYPASsscaper.py
 
+minimal (issue #2 marker)
+
 python script to scrape websites
 
 🎩🚀
