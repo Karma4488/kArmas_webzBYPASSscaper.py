@@ -1,0 +1,9 @@
+README.md
+kArmas_webzBYPASS_scraper.py
+pyproject.toml
+kArmas_webzBYPASS_scraper.egg-info/PKG-INFO
+kArmas_webzBYPASS_scraper.egg-info/SOURCES.txt
+kArmas_webzBYPASS_scraper.egg-info/dependency_links.txt
+kArmas_webzBYPASS_scraper.egg-info/entry_points.txt
+kArmas_webzBYPASS_scraper.egg-info/requires.txt
+kArmas_webzBYPASS_scraper.egg-info/top_level.txt

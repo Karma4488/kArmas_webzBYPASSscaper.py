@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kArmas-webzBYPASS-scraper"
+version = "0.1.0"
+description = "A simple web scraper utility built with requests and BeautifulSoup."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+  "requests>=2.28.0",
+  "beautifulsoup4>=4.11.1",
+  "lxml>=4.9.2",
+]
+
+[project.scripts]
+kArmas_webzBYPASS_scraper = "kArmas_webzBYPASS_scraper:main"
+kArmas-webzBYPASS-scraper = "kArmas_webzBYPASS_scraper:main"
+
+[tool.setuptools]
+py-modules = ["kArmas_webzBYPASS_scraper"]

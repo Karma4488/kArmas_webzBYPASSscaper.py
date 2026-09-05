@@ -1,0 +1,3 @@
+[console_scripts]
+kArmas-webzBYPASS-scraper = kArmas_webzBYPASS_scraper:main
+kArmas_webzBYPASS_scraper = kArmas_webzBYPASS_scraper:main
