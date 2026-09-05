@@ -1,5 +1,8 @@
 # kArmas_webzBYPASS_scraper.py
 
+minimal (issue #2 marker)
+
+python script to scrape websites
 A lightweight web scraper built with `requests` and `BeautifulSoup`.
 
 ## Install
